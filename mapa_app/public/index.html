@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Visor de Mapas con Administración</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-kmz/dist/leaflet-kmz.js"></script>
+  <style>
+   html, body {
+              margin: 0;
+              padding: 0;
+              display: flex;
+              width: 100%;
+              height: 100%;       /* cuerpo de la página ocupa 100% */
+              font-family: Arial, sans-serif;
+              }
+
+    #sidebar {
+            /*width: 25%;*/
+            flex:0 0 20%;
+            background: #f8f9fa;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.15); /* sombra elegante */
+          }
+
+    #map {
+            /*width: 75%;*/
+            flex:0 0 80%;
+            position: relative; /* ¡Importante! Para posicionar la barra de búsqueda dentro */
+            /*height: 100%;       /* mapa ocupa toda la altura */
+      }
+ /* Estilo de las pestañas */
+    .tab-header {
+      display: flex;
+      background: #e9ecef;
+      border-bottom: 1px solid #ccc;
+    }
+
+    .tab-header button {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      background: #e9ecef;
+      cursor: pointer;
+      font-weight: bold;
+      color: #333;
+      transition: background 0.2s;
+    }
+
+    .tab-header button:hover {
+      background: #dee2e6;
+    }
+
+    .tab-header button.active {
+      background: #adb5bd;
+      color: #fff;
+    }
+
+    .tab-content {
+      flex: 1;
+      padding: 15px;
+      overflow-y: auto;
+    }
+
+    .tab-pane {
+      display: none;
+    }
+
+    .tab-pane.active {
+      display: block;
+    }
+
+    h3 { margin-top: 15px; margin-bottom: 10px; }
+    input, textarea, button {
+      width: 100%;
+      margin-bottom: 8px;
+      padding: 6px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      background: #495057;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #343a40;
+    }
+
+/* --- ESTILOS PARA LA NUEVA BARRA DE BÚSQUEDA --- */
+#search-container {
+    position: absolute; /* Posiciona la barra sobre el mapa */
+    top: 10px;          /* 10px desde la parte superior */
+    left: 50%;          /* La centra horizontalmente */
+    transform: translateX(-50%); /* Ajuste fino para el centrado exacto */
+    z-index: 1000;      /* Se asegura que esté por encima de los elementos del mapa */
+    display: flex;
+    background-color: white;
+    border-radius: 5px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+#searchInput {
+    width: 300px;
+    padding: 10px;
+    border: none;
+    border-radius: 5px 0 0 5px;
+    outline: none; /* Quita el borde al hacer clic */
+}
+
+#searchButton {
+    padding: 10px 15px;
+    border: none;
+    background-color: #007bff;
+    color: white;
+    cursor: pointer;
+    border-radius: 0 5px 5px 0;
+}
+
+#searchButton:hover {
+    background-color: #0056b3;
+}
+
+  </style>
+</head>
+<body>
+  <div id="sidebar">
+    <!-- Encabezado de pestañas -->
+    <div class="tab-header">
+      <button class="active" onclick="openTab(event, 'tab1')">Pestaña 1</button>
+      <button onclick="openTab(event, 'tab2')">Pestaña 2</button>
+      <button onclick="openTab(event, 'tab3')">Pestaña 3</button>
+      <button onclick="openTab(event, 'tab4')">Pestaña 4</button>
+      <button onclick="openTab(event, 'tab5')">Pestaña 5</button>
+    </div>
+
+    <!-- Contenido de pestañas -->
+    <div class="tab-content">
+      <!-- Pestaña 1 -->
+      <div id="tab1" class="tab-pane active">
+        <h3>1. Agregar punto</h3>
+        <form id="formPunto">
+          <input type="text" name="nombre" placeholder="Nombre"><br>
+          <textarea name="descripcion" placeholder="Descripción"></textarea><br>
+          <textarea name="observaciones" placeholder="Observaciones"></textarea><br>
+          <input type="text" name="lat" placeholder="Latitud"><br>
+          <input type="text" name="lng" placeholder="Longitud"><br>
+          <input type="text" name="imagen" placeholder="URL Imagen"><br>
+          <input type="text" name="capa" placeholder="Capa"><br>
+          <button type="submit">Guardar punto</button>
+        </form>
+
+        <h3>2. Subir capa KMZ/KML</h3>
+        <input type="file" id="fileUpload">
+        <button onclick="uploadLayer()">Subir</button>
+      </div>
+
+      <!-- Pestaña 2 -->
+      <div id="tab2" class="tab-pane">
+        <h3>3. Ver mapas de calor</h3>
+        <button onclick="showHeatmap()">Generar Heatmap</button>
+
+        <h3>4. Elegir capas</h3>
+        <div id="listaCapas"></div>
+      </div>
+
+      <!-- Pestaña 3 -->
+      <div id="tab3" class="tab-pane">
+        <h3>5. Gestión de usuarios</h3>
+        <form id="formUsuario">
+          <input type="text" name="nombre" placeholder="Nombre"><br>
+          <input type="email" name="email" placeholder="Email"><br>
+          <input type="password" name="password" placeholder="Contraseña"><br>
+          <button type="submit">Crear usuario</button>
+        </form>
+      </div>
+
+      <!-- Pestaña 4 -->
+      <div id="tab4" class="tab-pane">
+        <p>Contenido de la pestaña 4 (vacío por ahora).</p>
+      </div>
+
+      <!-- Pestaña 5 -->
+      <div id="tab5" class="tab-pane">
+        <p>Contenido de la pestaña 5 (vacío por ahora).</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="map">
+        <div id="search-container">
+            <input type="text" id="searchInput" placeholder="Buscar dirección o coordenadas...">
+            <button id="searchButton">Buscar</button>
+        </div>
+
+  </div>
+
+  <script src="js/app.js"></script>
+
+  <script>
+    // Script para controlar pestañas
+    function openTab(evt, tabId) {
+      // Ocultar todo
+      document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+      document.querySelectorAll('.tab-header button').forEach(btn => btn.classList.remove('active'));
+
+      // Mostrar la pestaña seleccionada
+      document.getElementById(tabId).classList.add('active');
+      evt.currentTarget.classList.add('active');
+    }
+  </script>
+</body>
+</html>
